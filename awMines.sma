@@ -13,8 +13,15 @@ new const MINE_PLANT_SOUND[] = "awMines/plant.wav";
 #define MINE_RADIUS 100.0
 #define SET_MINE_CMD "set_mine" // Закомментировать, чтобы отключить команду (По сути без этого плагин становится просто инстументом для работы с минами)
 #if defined SET_MINE_CMD
-	//#define ADD_MINES_INVENTORY // Инвентарь мин
-	//#define SHOW_MINES_REST // При установке показывает остаток мин
+	#define ADD_MINES_INVENTORY // Инвентарь мин
+	#if defined ADD_MINES_INVENTORY
+		#define MINES_INVENTORY_SIZE 5 // Максимальное кол-во мин в инвентаре (Закомментировать, чтобы убрать лимит)
+		#define MINES_START_COUNT 5 // Начальное кол-во мин
+		#define SHOW_MINES_REST // При установке показывает остаток мин
+		#define GIVE_MINES_ON_SPAWN // Возвращать начальное значение кол-ва мин при спавне игрока
+	#endif
+	
+	#define MINES_USER_LIMIT 5 // Лимит одновременно установленных мин (Закомментировать, чтобы убрать лимит)
 #endif
 
 #define isUser(%1) (%1>0&&%1<=MAX_PLAYERS)
@@ -36,7 +43,7 @@ new uMinesInv[MAX_PLAYERS+1];
 #endif
 
 #define PLUG_NAME "Mines"
-#define PLUG_VER "0.2"
+#define PLUG_VER "0.3"
 
 public plugin_init(){
 	register_plugin(PLUG_NAME, PLUG_VER, "ArKaNeMaN");
@@ -46,9 +53,12 @@ public plugin_init(){
 	#endif
 	
 	RegisterHookChain(RG_RoundEnd, "roundEnd");
+	#if defined GIVE_MINES_ON_SPAWN
+	RegisterHookChain(RG_CBasePlayer_Spawn , "uSpawn");
+	#endif
 	
-	fwds[fwd_plantPre] = CreateMultiForward("awMines_fwdPantPre", ET_CONTINUE, FP_CELL, FP_ARRAY);
-	fwds[fwd_plantPost] = CreateMultiForward("awMines_fwdPantPost", ET_CONTINUE, FP_CELL);
+	fwds[fwd_plantPre] = CreateMultiForward("awMines_fwdPlantPre", ET_CONTINUE, FP_CELL, FP_ARRAY);
+	fwds[fwd_plantPost] = CreateMultiForward("awMines_fwdPlantPost", ET_CONTINUE, FP_CELL);
 	fwds[fwd_blowPre] = CreateMultiForward("awMines_fwdBlowPre", ET_CONTINUE, FP_CELL);
 	fwds[fwd_blowPost] = CreateMultiForward("awMines_fwdBlowPost", ET_CONTINUE, FP_CELL);
 	fwds[fwd_removePre] = CreateMultiForward("awMines_fwdRemovePre", ET_CONTINUE, FP_CELL);
@@ -75,7 +85,7 @@ public plugin_precache(){
 public client_putinserver(id){
 	uMines[id] = ArrayCreate();
 	#if defined ADD_MINES_INVENTORY
-	uMinesInv[id] = 0;
+	uMinesInv[id] = MINES_START_COUNT;
 	#endif
 }
 
@@ -133,6 +143,12 @@ public mineTouch(mine, id){
 public roundEnd(WinStatus:status, ScenarioEventEndRound:event, Float:tmDelay){
 	removeAllMines();
 }
+
+#if defined GIVE_MINES_ON_SPAWN
+public uSpawn(id){
+	uMinesInv[id] = MINES_START_COUNT;
+}
+#endif
 
 setMine(owner, Float:origin[3]){
 	if(!isUser(owner)) return 0;
@@ -236,6 +252,26 @@ removeAllUserMines(id){
 	for(new i = 0; i < ArraySize(uMines[id]); i++) removeMine(i);
 }
 
+addUserMines(id, count){
+	#if defined ADD_MINES_INVENTORY
+		#if defined MINES_INVENTORY_SIZE
+			uMinesInv[id] = min(uMinesInv[id]+count, MINES_INVENTORY_SIZE);
+			client_print(id, print_center, "У вас %d/%d мин", uMinesInv[id], MINES_INVENTORY_SIZE);
+		#else
+			uMinesInv[id] += count;
+			client_print(id, print_center, "У вас %d мин", uMinesInv[id]);
+		#endif
+	#endif
+}
+
+bool:isInventoryFull(id){
+	#if defined MINES_INVENTORY_SIZE
+		return (uMinesInv[id] >= MINES_INVENTORY_SIZE);
+	#else
+		return false;
+	#endif
+}
+
 
 public plugin_natives(){
 	register_native("awMines_getUserMinesCount", "_getUserMinesCount");
@@ -244,6 +280,8 @@ public plugin_natives(){
 	register_native("awMines_removeMine", "_removeMine");
 	register_native("awMines_removeAllMines", "_removeAllMines");
 	register_native("awMines_removeAllUserMines", "_removeAllUserMines");
+	register_native("awMines_giveUserMines", "_giveUserMines");
+	register_native("awMines_isInventoryFull", "_isInventoryFull");
 }
 
 public _getUserMinesCount(){
@@ -275,4 +313,23 @@ public _removeAllMines(){
 
 public _removeAllUserMines(){
 	removeAllUserMines(get_param(1));
+}
+
+public _giveUserMines(){
+	static id; id = get_param(1);
+	static count; count = get_param(2);
+	addUserMines(id, count);
+}
+
+public _isInventoryFull(){
+	static id; id = get_param(1);
+	return isInventoryFull(id);
+}
+
+
+// Для dgMoreBonuses.amxx
+
+public mines_addUserMines(id, const strCount[]){
+	static count; count = str_to_num(strCount);
+	addUserMines(id, count);
 }
