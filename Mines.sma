@@ -2,12 +2,12 @@
 #include <fakemeta>
 #include <fakemeta_util>
 #include <reapi>
-#include <awMines>
+#include <Mines>
 
-new const MINE_MODEL[] = "models/awMines/mine.mdl";
-new const MINE_BLOW_SPRITE[] = "sprites/awMines/blow.spr";
-new const MINE_BLOW_SOUND[] = "awMines/blow.wav";
-new const MINE_PLANT_SOUND[] = "awMines/plant.wav";
+new const MINE_MODEL[] = "models/Mines/Mine.mdl";
+new const MINE_BLOW_SPRITE[] = "sprites/Mines/Blow.spr";
+new const MINE_BLOW_SOUND[] = "Mines/Blow.wav";
+new const MINE_PLANT_SOUND[] = "Mines/Plant.wav";
 #define DETECT_ONLY_PLAYERS // Срабатывание только на игроков
 #define MINE_DAMAGE 80.0
 #define MINE_RADIUS 100.0
@@ -19,40 +19,33 @@ new const MINE_PLANT_SOUND[] = "awMines/plant.wav";
 
 #define isUser(%1) (%1>0&&%1<=MAX_PLAYERS)
 
-enum e_fwds{
-	fwd_plantPre,
-	fwd_plantPost,
-	fwd_blowPre,
-	fwd_blowPost,
-	fwd_removePre,
-	fwd_removePost,
+enum e_Fwds{
+	Fwd_PlantPre,
+	Fwd_PlantPost,
+	Fwd_BlowPre,
+	Fwd_BlowPost,
+	Fwd_RemovePre,
+	Fwd_RemovePost,
 }
 
-new fwds[e_fwds];
+new Fwds[e_Fwds];
 
 new Array:uMines[MAX_PLAYERS+1];
-#if defined ADD_MINES_INVENTORY
-new uMinesInv[MAX_PLAYERS+1];
-#endif
 
-#define PLUG_NAME "Mines"
-#define PLUG_VER "0.2"
+new const PLUG_NAME[] = "Mines";
+new const PLUG_VER[] = "0.2";
 
 public plugin_init(){
 	register_plugin(PLUG_NAME, PLUG_VER, "ArKaNeMaN");
 	
-	#if defined SET_MINE_CMD
-	register_clcmd(SET_MINE_CMD, "cmdSetMine");
-	#endif
-	
 	RegisterHookChain(RG_RoundEnd, "roundEnd");
 	
-	fwds[fwd_plantPre] = CreateMultiForward("awMines_fwdPantPre", ET_CONTINUE, FP_CELL, FP_ARRAY);
-	fwds[fwd_plantPost] = CreateMultiForward("awMines_fwdPantPost", ET_CONTINUE, FP_CELL);
-	fwds[fwd_blowPre] = CreateMultiForward("awMines_fwdBlowPre", ET_CONTINUE, FP_CELL);
-	fwds[fwd_blowPost] = CreateMultiForward("awMines_fwdBlowPost", ET_CONTINUE, FP_CELL);
-	fwds[fwd_removePre] = CreateMultiForward("awMines_fwdRemovePre", ET_CONTINUE, FP_CELL);
-	fwds[fwd_removePost] = CreateMultiForward("awMines_fwdRemovePost", ET_CONTINUE, FP_CELL);
+	Fwds[fwd_plantPre] = CreateMultiForward("awMines_fwdPantPre", ET_CONTINUE, FP_CELL, FP_ARRAY);
+	Fwds[fwd_plantPost] = CreateMultiForward("awMines_fwdPantPost", ET_CONTINUE, FP_CELL);
+	Fwds[fwd_blowPre] = CreateMultiForward("awMines_fwdBlowPre", ET_CONTINUE, FP_CELL);
+	Fwds[fwd_blowPost] = CreateMultiForward("awMines_fwdBlowPost", ET_CONTINUE, FP_CELL);
+	Fwds[fwd_removePre] = CreateMultiForward("awMines_fwdRemovePre", ET_CONTINUE, FP_CELL);
+	Fwds[fwd_removePost] = CreateMultiForward("awMines_fwdRemovePost", ET_CONTINUE, FP_CELL);
 	
 	server_print("[%s v%s] loaded.", PLUG_NAME, PLUG_VER);
 }
@@ -87,42 +80,6 @@ public client_disconnected(id){
 	#endif
 }
 
-#if defined SET_MINE_CMD
-public cmdSetMine(id){
-	if(!is_user_alive(id)) return PLUGIN_CONTINUE;
-	
-	#if defined ADD_MINES_INVENTORY
-	if(uMinesInv[id] > 0){
-		#if defined SHOW_MINES_REST
-		client_print(id, print_center, "У вас закончились мины");
-		#endif
-		return PLUGIN_CONTINUE;
-	}
-	#endif
-	
-	static Float:fOrigin[3]; fm_get_aim_origin(id, fOrigin);
-	
-	#if defined ADD_MINES_INVENTORY
-	static mine; mine = setMine(id, fOrigin);
-	if(mine){
-		uMinesInv[id]--;
-		#if defined SHOW_MINES_REST
-		new temp = uMinesInv[id] % 10 == 1;
-		client_print(id, print_center, "У вас остал%sсь %d мин%s",
-			(temp == 1) ? "а" : "о",
-			uMinesInv[id],
-			(temp == 1) ? "а" : ((temp > 1 && temp < 5 && (uMinesInv[id] != 11 && uMinesInv[id] != 12)) ? "ы" : "")
-		);
-		#endif
-	}
-	#else
-	setMine(id, fOrigin);
-	#endif
-	
-	return PLUGIN_CONTINUE;
-}
-#endif
-
 public mineTouch(mine, id){
 	#if defined DETECT_ONLY_PLAYERS
 	if(!isUser(id)) return;
@@ -138,7 +95,7 @@ setMine(owner, Float:origin[3]){
 	if(!isUser(owner)) return 0;
 	
 	new ret = MINES_FWD_CONT;
-	ExecuteForward(fwds[fwd_plantPre], ret, owner, origin);
+	ExecuteForward(Fwds[fwd_plantPre], ret, owner, origin);
 	
 	if(ret == MINES_FWD_STOP) return 0;
 	
@@ -158,7 +115,7 @@ setMine(owner, Float:origin[3]){
 	
 	SetTouch(mine, "mineTouch");
 	
-	ExecuteForward(fwds[fwd_plantPost], ret, mine);
+	ExecuteForward(Fwds[fwd_plantPost], ret, mine);
 	
 	rh_emit_sound2(mine, 0, CHAN_ITEM, MINE_PLANT_SOUND);
 	
@@ -170,7 +127,7 @@ blowMine(mine){
 	if(!awMines_isMine(mine)) return;
 	
 	new ret = MINES_FWD_CONT;
-	ExecuteForward(fwds[fwd_blowPre], ret, mine);
+	ExecuteForward(Fwds[fwd_blowPre], ret, mine);
 	if(ret == MINES_FWD_STOP) return;
 	
 	static Float:origin[3]; get_entvar(mine, var_origin, origin);
@@ -180,7 +137,7 @@ blowMine(mine){
 	blowAnim(origin);
 	rh_emit_sound2(mine, 0, CHAN_WEAPON, MINE_BLOW_SOUND);
 	
-	ExecuteForward(fwds[fwd_blowPost], ret, mine);
+	ExecuteForward(Fwds[fwd_blowPost], ret, mine);
 	
 	removeMine(mine);
 }
@@ -214,7 +171,7 @@ removeMine(mine){
 	if(!awMines_isMine(mine)) return;
 	
 	new ret = MINES_FWD_CONT;
-	ExecuteForward(fwds[fwd_removePre], ret, mine);
+	ExecuteForward(Fwds[fwd_removePre], ret, mine);
 	if(ret == MINES_FWD_STOP) return;
 	
 	static owner; owner = awMines_getMineOwner(mine);
@@ -222,18 +179,18 @@ removeMine(mine){
 	if(item > -1) ArrayDeleteItem(uMines[owner], item);
 	set_entvar(mine, var_flags, FL_KILLME);
 	
-	ExecuteForward(fwds[fwd_removePost], ret, mine);
+	ExecuteForward(Fwds[fwd_removePost], ret, mine);
 }
 
 removeAllMines(){
-	new mine = 1;
-	while((mine = awMines_findMineEnts(mine)) > 0){
+	static Mine = 1;
+	while((mine = awMines_FindMine(Mine)) > 0)
 		removeMine(mine);
-	}
 }
 
 removeAllUserMines(id){
-	for(new i = 0; i < ArraySize(uMines[id]); i++) removeMine(i);
+	for(new i = 0; i < ArraySize(uMines[id]); i++)
+		removeMine(i);
 }
 
 

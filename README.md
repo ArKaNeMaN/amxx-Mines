@@ -1,1 +1,1 @@
-# amxx-Mines
+# Mines

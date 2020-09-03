@@ -1,6 +1,6 @@
 .gitattributes
 include/*
-!include/awMines.inc
+!include/Mines.inc
 compiled/*
 compile.exe
 amxxpc32.dll
